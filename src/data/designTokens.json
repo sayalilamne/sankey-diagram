@@ -1,0 +1,12 @@
+{
+  "bg-base": "#5B2A6F",
+  "bg-secondary": "#6F4AA8",
+  "particle-ambient": "#A88CCF",
+  "flow-water-1": "#76B6E8",
+  "flow-water-2": "#B8D8F2",
+  "flow-primary": "#DB634C",
+  "flow-secondary": "#E58B42",
+  "flow-tertiary": "#F0B07A",
+  "accent-highlight": "#F3D9B4",
+  "text-on-dark": "#FBF6EE"
+}
