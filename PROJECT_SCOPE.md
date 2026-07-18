@@ -1,5 +1,7 @@
 # Hybrid-Powered Data Center Energy & Water Flow Dashboard
-### Project Scope v2.3 — for Claude Code build + GitHub setup
+### Project Scope v2.4 — for Claude Code build + GitHub setup
+
+> **Change log from v2.3:** Color system (Section 8) rebuilt around a **white/light background** instead of the dark plum canvas — driven by two visual references: an abstract flowing-ribbon image whose palette is literally three hue families (purple/magenta, orange, blue), and Simon Scarr's "Wiring the City" SCMP Sankey (clean editorial infographic, white background, organic curved links, serif title). The three hue families now map directly onto the three Sankey diagrams: **Electrical = orange/amber, Cooling & Water = blue, Heat = purple/magenta** (purple is no longer structure-only). Purple/structure tokens are repurposed as sparing UI chrome accents against white rather than a full-canvas dark base. **Not yet revisited:** Section 9's climate-map "muted vs. highlighted" contrast, Section 10's opacity-layering depth technique, and Section 11's particle-glow rendering (`globalCompositeOperation: 'lighter'`) were all written assuming a dark canvas — `lighter` blending in particular does nothing useful against white and will need a different technique. These get worked out when Phase 3 (animation) actually starts, not speculatively now.
 
 > **Change log from v2.2:** Added a left-margin tier-label rail (Section 4) so each horizontal band of the Sankey is explicitly named as the flow descends (Power Source → Site Delivery → Building Load → Heat Outcome), with the water flow's tiers aligned to the same bands where causally linked. Added a docked axonometric California climate-zone map (new Section 9) in the top-right of the flow canvas — highlights the selected climate zone and connects via a leader line into the parts of the flow it drives (Cooling branch, Solar inflow). Page layout (Section 3) and repo structure updated accordingly; all section numbers below shifted by one from v2.2.
 
@@ -228,32 +230,50 @@ Keep node/link values **derived from the scenario + live_controls object at rend
 
 ## 8. Color System
 
-Concrete palette (replaces the placeholder from v2.0) — pulled from your references and mapped to function, not just applied decoratively:
+**v2.4 rebuild — white background, three-hue-family mapping.** Two references drove this: an abstract flowing-ribbon artwork whose palette is three translucent hue families (purple/magenta, orange, blue) blended on white, and Simon Scarr's "Wiring the City" SCMP Sankey — a clean editorial infographic on white, with organic curved links and a distinct color per end-use category. The dashboard now reads as **light and editorial**, not dark and moody: white canvas, three Sankeys each carrying one of the three reference hue families as its signature color, ribbon-style curved (not straight-edged) links, purple demoted from "background" to "sparing UI chrome."
 
 | Token | Hex | Usage |
 |---|---|---|
-| `--bg-base` | `#5B2A6F` Deep Plum | Canvas background — dark enough for particles/glow to read, sets the moody base the whole piece sits on |
-| `--bg-secondary` | `#6F4AA8` Royal Purple | Secondary background layer / panel fills (input bar, methodology panel) |
-| `--particle-ambient` | `#A88CCF` Lavender | Idle-floating particle field — the pre-input state, low-opacity |
-| `--flow-water-1` | `#76B6E8` Sky Blue | Primary water flow links (makeup water, main cooling loop) |
-| `--flow-water-2` | `#B8D8F2` Powder Blue | Secondary/lighter water flow (evaporated, reclaim potential) — lighter = more "resolved/returned" |
-| `--flow-primary` | `#DB634C` Terracotta Orange (brand) | Primary electricity flow — IT Load, the main trunk. This stays the dominant accent since it's your established brand color |
-| `--flow-secondary` | `#E58B42` Warm Amber | Cooling/HVAC electricity branch — distinguishes it from IT Load while staying in the warm family (electricity = warm, water = cool, is the core color logic) |
-| `--flow-tertiary` | `#F0B07A` Soft Peach | Lighting/Aux/losses — the smallest, least visually demanding branch |
-| `--accent-highlight` | `#F3D9B4` Champagne | Heat Recovery Potential branch — the "opportunity" flow, deliberately the lightest/brightest warm tone to draw the eye as the payoff insight |
-| `--text-on-dark` | Warm Ivory (~`#FBF6EE`) | All text/labels against the plum/purple background |
+| `--bg-base` | `#FFFFFF` White | Canvas background — full white, per direct instruction |
+| `--bg-secondary` | `#F7F5F2` Warm White | Panel fills (input bar, methodology panel) — barely-there contrast against pure white, avoids a harsh flat white-on-white seam |
+| `--text-primary` | `#1A1420` Near-Black Plum | Headings and body text against white |
+| `--text-secondary` | `#6B6470` Muted Plum-Gray | Captions, tier labels, secondary text |
+| `--line-hairline` | `#E5E1E8` Pale Lavender | Hairline rules (tier-rail separators, table borders) — replaces the old thin white-on-dark rule |
+| `--structure-accent` | `#6F4AA8` Royal Purple | UI chrome only now — input-bar active states, section dividers, focus rings. No longer the canvas base |
 
-**Core color logic — this is the rule to hold to throughout the build:**
-- **Warm tones (terracotta → amber → peach → champagne) = electricity**, graduating from the main trunk (terracotta, most saturated) down to the smallest/most "bonus" branches (champagne, lightest).
-- **Cool blues (sky blue → powder blue) = water**, always. Never let a water link render in a warm tone or vice versa — this is the fastest visual cue a recruiter reads, faster than the labels.
-- **Purples (plum, royal purple, lavender) = structure and background**, not flow — panels, canvas base, ambient particles. This keeps the flow colors from competing with the UI chrome.
+**Electrical Flow — orange/amber family:**
+| Token | Hex | Usage |
+|---|---|---|
+| `--flow-primary` | `#DB634C` Terracotta (brand) | Main trunk — Grid/Solar/Battery inflow, IT Load. Unchanged from v2.3; already reads well on white |
+| `--flow-secondary` | `#D98C2B` Deep Amber | Cooling/HVAC electricity branch — deepened from v2.3's `#E58B42` for contrast against white |
+| `--flow-tertiary` | `#E3A467` Warm Peach | Lighting/Aux, transformer/UPS/distribution losses — deepened from v2.3's `#F0B07A`, which read as near-invisible on white |
+| `--accent-highlight` | `#C9962B` Rich Gold | Headline PUE / "opportunity" callouts — replaces v2.3's pale champagne `#F3D9B4`, which all but disappeared on a white canvas |
+
+**Cooling & Water Flow — blue family:**
+| Token | Hex | Usage |
+|---|---|---|
+| `--flow-water-1` | `#2E86C1` Deep Sky Blue | Primary water flow — water source, CDU makeup water, main loop. Deepened from v2.3's `#76B6E8` for contrast |
+| `--flow-water-2` | `#7FB8E0` Soft Blue | Evaporated / blowdown split — lighter = "resolved/returned," same logic as v2.3, deepened from `#B8D8F2` |
+
+**Heat Flow — purple/magenta family (new; purple was structure-only in v2.3):**
+| Token | Hex | Usage |
+|---|---|---|
+| `--flow-heat-1` | `#6F3A8C` Deep Violet | Chip heat, to-coolant trunk |
+| `--flow-heat-2` | `#B23A7A` Magenta Rose | Recovered Heat — the payoff flow, deliberately the most saturated/eye-catching heat tone |
+| `--flow-heat-3` | `#C9B7D6` Muted Lavender | Rejected to Atmosphere — the "lost" outcome, deliberately the quietest heat tone |
+
+**Core color logic — the rule to hold to throughout the build:**
+- **One hue family per Sankey, matching the reference artwork's three ribbon colors:** orange/amber = Electrical, blue = Cooling & Water, purple/magenta = Heat. Never let a flow render outside its diagram's family — this is the fastest visual cue a recruiter reads, faster than labels.
+- **Within each family, saturation encodes narrative weight:** the main/dominant trunk gets the most saturated tone; secondary branches step down; the "payoff" flow (Recoverable Heat, headline PUE) gets the brightest/most attention-grabbing tone in its family; the "loss/waste" flow gets the quietest.
+- **Purple is UI chrome only**, not a flow color anymore except within the Heat Sankey specifically — it must not appear as a structural/background element competing with the Heat diagram's own use of purple.
+- **Links render as organic curved ribbons**, not straight-edged bars — matches both references directly (Scarr's curved link paths, and the ribbon artwork's flowing form). See Section 10 for the fluid rendering technique, which still needs its opacity math re-derived for a white base (see v2.4 change log note above).
 
 **Energy source distinction (Grid / Solar / Battery):**
-The three inflows at the top of the electricity Sankey need to read as visually distinct *sources* even though they all feed into the same warm-toned trunk. Rather than three arbitrary colors (which would break the warm=electricity rule), differentiate by **texture/pattern within the warm family**, not hue:
+The three inflows at the top of the electricity Sankey need to read as visually distinct *sources* even though they all feed into the same `--flow-primary` trunk. Rather than three arbitrary colors (which would break the one-hue-family-per-diagram rule), differentiate by **texture/pattern within the family**, not hue:
 - **Grid (CAISO):** solid terracotta fill, matching the main trunk it's directly continuous with
 - **Solar:** terracotta fill with a subtle diagonal-hatch or gradient-pulse overlay (suggests intermittency/daylight-dependence — could literally pulse in opacity on a slow cycle to imply "sun-dependent")
 - **Battery:** terracotta fill with a subtle dashed/segmented link pattern (suggests stored/discrete rather than continuous flow)
-This keeps the "electricity = warm" rule intact while still making Grid vs. Solar vs. Battery legible at a glance — label each on hover/tap regardless, since pattern alone shouldn't carry the full burden of distinction (accessibility).
+This keeps the "one family per diagram" rule intact while still making Grid vs. Solar vs. Battery legible at a glance — label each on hover/tap regardless, since pattern alone shouldn't carry the full burden of distinction (accessibility).
 
 ---
 
