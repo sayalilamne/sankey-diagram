@@ -1,73 +1,200 @@
-// Pure derivation of the electricity Sankey's node/link values from scenario
-// coefficients. cooling/aux split and heat_recovery_pct are provisional
-// placeholders (Section 7/13 of PROJECT_SCOPE.md leaves these unpinned) —
-// replace with LBNL/DOE-sourced values in a later phase.
+// Granular node/link derivation for the Electrical and Water Sankeys.
+// Mirrors workbook/DataCenter_Flow_Model.xlsx exactly (Electricity Flow,
+// Cooling Flow, Water Flow, Heat Recovery sheets) for the workbook's default
+// scenario (CZ4 San Jose / AI Training / High Reliability / Closed-loop
+// Evaporative / Direct-to-Chip / 2-5 years / Power Mix 55-30-15-0), so the
+// two deliverables report identical numbers. Loss percentages not explicitly
+// given here (0.5%/0.2%/2%/1%) come from the user-provided power-flow
+// reference diagram; the IT hardware mix (GPU/TPU/CPU/ASIC/MPU/Fans split)
+// is an illustrative assumption — see the workbook's Equipment Efficiencies
+// sheet for full documentation of both.
 
-export const NODE_COLUMN = {
-  grid: 0,
-  solar: 0,
-  battery: 0,
-  switchgear: 1,
-  it_load: 2,
-  cooling: 2,
-  aux: 2,
-  switchgear_loss: 2,
-  waste_heat: 3,
-  heat_recovered: 4,
-  heat_rejected: 4,
+export const ELECTRICAL_NODE_COLUMN = {
+  utility_grid: 0, onsite_solar: 0, ess: 0, generator: 0,
+  hv_transmission: 1, pv_inverter: 1, pcs: 1, generator_breaker: 1,
+  main_mv_bus: 2,
+  mv_switchgear: 3,
+  utility_transformer: 4,
+  lv_switchgear: 5, transformer_loss: 5,
+  ats: 6, lv_switchgear_loss: 6,
+  it_infra: 7, lighting_aux: 7,
+  ups: 8,
+  ups_loss: 9, dist_panels: 9,
+  pdu: 10,
+  rpdu: 11,
+  rpdu_loss: 12, server_psu: 12,
+  motherboard: 13,
+  gpu: 14, tpu: 14, cpu: 14, asic: 14, mpu: 14, fans: 14,
+}
+
+export const WATER_NODE_COLUMN = {
+  water_source: 0,
+  onsite_pump: 1,
+  hvac: 2,
+  closed_loop_evaporative: 3,
+  chiller: 4,
+  facility_water_loop: 5,
+  evaporated: 6, blowdown: 6,
 }
 
 export function computeElectricityFlow({
   capacity_mw,
-  pue,
-  switchgear_loss_pct,
+  pue_floor,
+  climate_cooling_mult,
+  heat_rejection_pue_factor,
+  standby_loss_pct,
+  workload_cooling_mult,
+  ups_redundancy_factor,
+  utility_transformer_loss_pct,
+  lv_switchgear_loss_pct,
+  ups_heat_loss_pct_base,
+  rpdu_loss_pct,
   power_mix_ratio,
-  overhead_split,
-  heat_recovery_pct,
+  it_hardware_mix,
 }) {
   const itLoad = capacity_mw
-  const totalFacility = itLoad * pue
-  const overhead = totalFacility - itLoad
-  const cooling = overhead * overhead_split.cooling
-  const aux = overhead * overhead_split.aux
+  const modeledCoolingPUE =
+    1 + (pue_floor - 1) * climate_cooling_mult * heat_rejection_pue_factor + standby_loss_pct
+  const totalFacility = itLoad * modeledCoolingPUE
+  const lightingAux = totalFacility - itLoad
 
-  const switchgearInput = totalFacility / (1 - switchgear_loss_pct)
-  const switchgearLoss = switchgearInput - totalFacility
+  // Facility level, working backward from the chip
+  const rpduInput = itLoad / (1 - rpdu_loss_pct)
+  const rpduLoss = rpduInput - itLoad
+  const pduInput = rpduInput
+  const distPanelInput = pduInput
+  const upsLossPctEff = Math.min(0.30, ups_heat_loss_pct_base * ups_redundancy_factor)
+  const upsInput = distPanelInput / (1 - upsLossPctEff)
+  const upsLoss = upsInput - distPanelInput
 
-  const grid = switchgearInput * power_mix_ratio.grid
-  const solar = switchgearInput * power_mix_ratio.solar
-  const battery = switchgearInput * power_mix_ratio.battery
+  // Campus infrastructure
+  const atsInput = upsInput + lightingAux
+  const lvswInput = atsInput / (1 - lv_switchgear_loss_pct)
+  const lvswLoss = lvswInput - atsInput
+  const xfmrInput = lvswInput / (1 - utility_transformer_loss_pct)
+  const xfmrLoss = xfmrInput - lvswInput
+  const mvBusInput = xfmrInput
 
-  const wasteHeat = itLoad
-  const heatRecovered = wasteHeat * heat_recovery_pct
-  const heatRejected = wasteHeat - heatRecovered
+  // Utility level — source split
+  const grid = mvBusInput * power_mix_ratio.grid
+  const solar = mvBusInput * power_mix_ratio.solar
+  const battery = mvBusInput * power_mix_ratio.battery
+  const generator = mvBusInput * power_mix_ratio.generator
 
   const nodes = [
-    { id: 'grid', label: 'CAISO Grid' },
-    { id: 'solar', label: 'Solar PV' },
-    { id: 'battery', label: 'Battery (BESS)' },
-    { id: 'switchgear', label: 'Substation / Switchgear' },
-    { id: 'it_load', label: 'IT Load' },
-    { id: 'cooling', label: 'Cooling Plant' },
-    { id: 'aux', label: 'Lighting/Aux' },
-    { id: 'switchgear_loss', label: 'UPS/Transformer Loss' },
-    { id: 'waste_heat', label: 'Waste Heat' },
-    { id: 'heat_recovered', label: 'Recoverable Heat' },
-    { id: 'heat_rejected', label: 'Rejected to Atmosphere' },
+    { id: 'utility_grid', label: 'Utility Grid' },
+    { id: 'onsite_solar', label: 'On-site Solar' },
+    { id: 'ess', label: 'ESS' },
+    { id: 'generator', label: 'Generator' },
+    { id: 'hv_transmission', label: 'HV Transmission' },
+    { id: 'pv_inverter', label: 'PV Inverter' },
+    { id: 'pcs', label: 'PCS' },
+    { id: 'generator_breaker', label: 'Generator Breaker' },
+    { id: 'main_mv_bus', label: 'Main MV BUS' },
+    { id: 'mv_switchgear', label: 'MV Switchgear' },
+    { id: 'utility_transformer', label: 'Utility Transformer' },
+    { id: 'lv_switchgear', label: 'LV Switchgear' },
+    { id: 'transformer_loss', label: 'Transformer Loss (0.5%)' },
+    { id: 'ats', label: 'ATS' },
+    { id: 'lv_switchgear_loss', label: 'LV Switchgear Loss (0.2%)' },
+    { id: 'it_infra', label: 'IT Infrastructure/Servers' },
+    { id: 'lighting_aux', label: 'Lighting & Building Aux' },
+    { id: 'ups', label: 'UPS (N+1)' },
+    { id: 'ups_loss', label: 'UPS Heat Loss (2%)' },
+    { id: 'dist_panels', label: 'Distribution Panels' },
+    { id: 'pdu', label: 'PDUs' },
+    { id: 'rpdu', label: 'rPDUs' },
+    { id: 'rpdu_loss', label: 'rPDU Loss (1%)' },
+    { id: 'server_psu', label: 'Server PSU' },
+    { id: 'motherboard', label: 'Motherboard' },
+    { id: 'gpu', label: 'GPU' },
+    { id: 'tpu', label: 'TPU' },
+    { id: 'cpu', label: 'CPU' },
+    { id: 'asic', label: 'ASIC' },
+    { id: 'mpu', label: 'MPU' },
+    { id: 'fans', label: 'Server Fans' },
   ]
 
+  const T = '--flow-primary'
+  const A = '--flow-secondary'
+  const L = '--flow-tertiary'
+
   const links = [
-    { source: 'grid', target: 'switchgear', value: grid, colorVar: '--flow-primary' },
-    { source: 'solar', target: 'switchgear', value: solar, colorVar: '--flow-primary' },
-    { source: 'battery', target: 'switchgear', value: battery, colorVar: '--flow-primary' },
-    { source: 'switchgear', target: 'it_load', value: itLoad, colorVar: '--flow-primary' },
-    { source: 'switchgear', target: 'cooling', value: cooling, colorVar: '--flow-secondary' },
-    { source: 'switchgear', target: 'aux', value: aux, colorVar: '--flow-tertiary' },
-    { source: 'switchgear', target: 'switchgear_loss', value: switchgearLoss, colorVar: '--flow-tertiary' },
-    { source: 'it_load', target: 'waste_heat', value: wasteHeat, colorVar: '--flow-primary' },
-    { source: 'waste_heat', target: 'heat_recovered', value: heatRecovered, colorVar: '--accent-highlight' },
-    { source: 'waste_heat', target: 'heat_rejected', value: heatRejected, colorVar: '--flow-tertiary' },
+    { source: 'utility_grid', target: 'hv_transmission', value: grid, colorVar: T },
+    { source: 'hv_transmission', target: 'main_mv_bus', value: grid, colorVar: T },
+    { source: 'onsite_solar', target: 'pv_inverter', value: solar, colorVar: T },
+    { source: 'pv_inverter', target: 'main_mv_bus', value: solar, colorVar: T },
+    { source: 'ess', target: 'pcs', value: battery, colorVar: T },
+    { source: 'pcs', target: 'main_mv_bus', value: battery, colorVar: T },
+    { source: 'generator', target: 'generator_breaker', value: generator, colorVar: T },
+    { source: 'generator_breaker', target: 'main_mv_bus', value: generator, colorVar: T },
+    { source: 'main_mv_bus', target: 'mv_switchgear', value: mvBusInput, colorVar: T },
+    { source: 'mv_switchgear', target: 'utility_transformer', value: xfmrInput, colorVar: T },
+    { source: 'utility_transformer', target: 'lv_switchgear', value: lvswInput, colorVar: T },
+    { source: 'utility_transformer', target: 'transformer_loss', value: xfmrLoss, colorVar: L },
+    { source: 'lv_switchgear', target: 'ats', value: atsInput, colorVar: T },
+    { source: 'lv_switchgear', target: 'lv_switchgear_loss', value: lvswLoss, colorVar: L },
+    { source: 'ats', target: 'it_infra', value: upsInput, colorVar: T },
+    { source: 'ats', target: 'lighting_aux', value: lightingAux, colorVar: A },
+    { source: 'it_infra', target: 'ups', value: upsInput, colorVar: T },
+    { source: 'ups', target: 'ups_loss', value: upsLoss, colorVar: L },
+    { source: 'ups', target: 'dist_panels', value: distPanelInput, colorVar: T },
+    { source: 'dist_panels', target: 'pdu', value: pduInput, colorVar: T },
+    { source: 'pdu', target: 'rpdu', value: rpduInput, colorVar: T },
+    { source: 'rpdu', target: 'rpdu_loss', value: rpduLoss, colorVar: L },
+    { source: 'rpdu', target: 'server_psu', value: itLoad, colorVar: T },
+    { source: 'server_psu', target: 'motherboard', value: itLoad, colorVar: T },
+    { source: 'motherboard', target: 'gpu', value: itLoad * it_hardware_mix.gpu, colorVar: T },
+    { source: 'motherboard', target: 'tpu', value: itLoad * it_hardware_mix.tpu, colorVar: T },
+    { source: 'motherboard', target: 'cpu', value: itLoad * it_hardware_mix.cpu, colorVar: T },
+    { source: 'motherboard', target: 'asic', value: itLoad * it_hardware_mix.asic, colorVar: T },
+    { source: 'motherboard', target: 'mpu', value: itLoad * it_hardware_mix.mpu, colorVar: T },
+    { source: 'motherboard', target: 'fans', value: itLoad * it_hardware_mix.fans, colorVar: T },
   ]
 
   return { nodes, links }
+}
+
+export function computeWaterFlow({
+  capacity_mw,
+  climate_wue_mult,
+  heat_rejection_wue_base,
+  it_utilization,
+  evaporated_share,
+}) {
+  const HOURS_PER_YEAR = 8760
+  const LITERS_PER_GALLON = 3.78541
+
+  const wue = heat_rejection_wue_base * climate_wue_mult
+  const annualITEnergyMWh = capacity_mw * it_utilization * HOURS_PER_YEAR
+  const waterLiters = wue * annualITEnergyMWh * 1000
+  const waterGallons = waterLiters / LITERS_PER_GALLON
+  const evapGal = waterGallons * evaporated_share
+  const blowGal = waterGallons * (1 - evaporated_share)
+
+  const nodes = [
+    { id: 'water_source', label: 'Water Source' },
+    { id: 'onsite_pump', label: 'Onsite Pump' },
+    { id: 'hvac', label: 'HVAC' },
+    { id: 'closed_loop_evaporative', label: 'Closed Loop Evaporative' },
+    { id: 'chiller', label: 'Chiller' },
+    { id: 'facility_water_loop', label: 'Facility Water Loop' },
+    { id: 'evaporated', label: 'Evaporated (Consumed)' },
+    { id: 'blowdown', label: 'Blowdown / Discharge' },
+  ]
+
+  const W1 = '--flow-water-1'
+  const W2 = '--flow-water-2'
+
+  const links = [
+    { source: 'water_source', target: 'onsite_pump', value: waterGallons, colorVar: W1 },
+    { source: 'onsite_pump', target: 'hvac', value: waterGallons, colorVar: W1 },
+    { source: 'hvac', target: 'closed_loop_evaporative', value: waterGallons, colorVar: W1 },
+    { source: 'closed_loop_evaporative', target: 'chiller', value: waterGallons, colorVar: W1 },
+    { source: 'chiller', target: 'facility_water_loop', value: waterGallons, colorVar: W1 },
+    { source: 'facility_water_loop', target: 'evaporated', value: evapGal, colorVar: W2 },
+    { source: 'facility_water_loop', target: 'blowdown', value: blowGal, colorVar: W1 },
+  ]
+
+  return { nodes, links, waterGallons, wue }
 }

@@ -2,18 +2,15 @@ import { useMemo } from 'react'
 import { sankey } from 'd3-sankey'
 import { linkVertical } from 'd3-shape'
 import designTokens from '../data/designTokens.json'
-import { NODE_COLUMN } from '../lib/flowModel'
 
-const WIDTH = 480
-const HEIGHT = 720
 const MARGIN = 24
-const NODE_THICKNESS = 24
+const NODE_THICKNESS = 14
 
 function colorFromVar(varName) {
   return designTokens[varName.replace('--', '')]
 }
 
-export default function SankeyElectricity({ data }) {
+export default function SankeyDiagram({ data, nodeColumn, width, height, ariaLabel }) {
   const { nodePositions, linkPaths } = useMemo(() => {
     const nodeIndex = new Map(data.nodes.map((n, i) => [n.id, i]))
     const graph = {
@@ -29,14 +26,14 @@ export default function SankeyElectricity({ data }) {
     const sankeyGenerator = sankey()
       .nodeId((_, i) => i)
       .nodeWidth(NODE_THICKNESS)
-      .nodePadding(16)
-      .nodeAlign((node) => NODE_COLUMN[node.id])
+      .nodePadding(10)
+      .nodeAlign((node) => nodeColumn[node.id])
       // extent's axes are swapped here on purpose: d3-sankey lays out
       // horizontally by default, so feeding it [height, width] and
       // transposing coordinates when drawing produces a vertical layout.
       .extent([
         [MARGIN, MARGIN],
-        [HEIGHT - MARGIN, WIDTH - MARGIN],
+        [height - MARGIN, width - MARGIN],
       ])
 
     const { nodes, links } = sankeyGenerator(graph)
@@ -61,7 +58,7 @@ export default function SankeyElectricity({ data }) {
     for (const row of rows.values()) {
       row.sort((a, b) => a.x - b.x)
       row.forEach((node, i) => {
-        node.labelOffset = i % 2 === 0 ? 6 : 18
+        node.labelOffset = i % 2 === 0 ? 5 : 15
       })
     }
 
@@ -78,15 +75,15 @@ export default function SankeyElectricity({ data }) {
     }))
 
     return { nodePositions, linkPaths }
-  }, [data])
+  }, [data, nodeColumn, width, height])
 
   return (
     <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
-      className="w-full h-auto max-w-2xl"
+      className="w-full h-auto"
       role="img"
-      aria-label="Electricity flow Sankey diagram for a 100MW California data center"
+      aria-label={ariaLabel}
     >
       {linkPaths.map((link, i) => (
         <path
@@ -95,7 +92,7 @@ export default function SankeyElectricity({ data }) {
           fill="none"
           stroke={link.color}
           strokeWidth={link.width}
-          strokeOpacity={0.85}
+          strokeOpacity={0.75}
         />
       ))}
       {nodePositions.map((node) => (
@@ -105,17 +102,17 @@ export default function SankeyElectricity({ data }) {
             y={node.y}
             width={node.width}
             height={node.height}
-            fill={designTokens['text-on-dark']}
-            fillOpacity={0.15}
-            stroke={designTokens['text-on-dark']}
-            strokeOpacity={0.3}
+            fill={designTokens['text-primary']}
+            fillOpacity={0.08}
+            stroke={designTokens['line-hairline']}
+            strokeWidth={1}
           />
           <text
             x={node.x + node.width / 2}
             y={node.y - node.labelOffset}
             textAnchor="middle"
-            fontSize={9.5}
-            fill={designTokens['text-on-dark']}
+            fontSize={7.5}
+            fill={designTokens['text-primary']}
           >
             {node.label}
           </text>

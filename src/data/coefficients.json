@@ -1,9 +1,20 @@
 {
   "capacity_mw": 100,
-  "pue": 1.3,
-  "wue": 0.6,
-  "switchgear_loss_pct": 0.03,
-  "power_mix_ratio": { "grid": 0.55, "solar": 0.3, "battery": 0.15 },
-  "overhead_split": { "cooling": 0.85, "aux": 0.15 },
-  "heat_recovery_pct": 0.2
+  "pue_floor": 1.10,
+  "climate_cooling_mult": 0.90,
+  "heat_rejection_pue_factor": 1.00,
+  "standby_loss_pct": 0.015,
+  "workload_cooling_mult": 1.15,
+  "ups_redundancy_factor": 1.10,
+  "utility_transformer_loss_pct": 0.005,
+  "lv_switchgear_loss_pct": 0.002,
+  "ups_heat_loss_pct_base": 0.02,
+  "rpdu_loss_pct": 0.01,
+  "cooling_share_of_overhead": 0.85,
+  "power_mix_ratio": { "grid": 0.55, "solar": 0.30, "battery": 0.15, "generator": 0.00 },
+  "it_hardware_mix": { "gpu": 0.55, "tpu": 0.15, "cpu": 0.12, "asic": 0.08, "mpu": 0.06, "fans": 0.04 },
+  "climate_wue_mult": 0.90,
+  "heat_rejection_wue_base": 0.80,
+  "it_utilization": 0.92,
+  "evaporated_share": 0.80
 }
