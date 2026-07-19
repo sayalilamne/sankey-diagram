@@ -285,16 +285,17 @@ export function computeDLCFlow({ capacity_mw, server_heat_loss_pct, it_hardware_
     { id: 'tpu_dlc', label: 'TPU' },
   ]
 
-  const W2 = '--flow-water-2'
+  const D1 = '--flow-dlc-1'
+  const D2 = '--flow-dlc-2'
 
   const links = [
-    { source: 'heat_exchanger', target: 'cdu', value: chipHeat, colorVar: W2 },
-    { source: 'cdu', target: 'dlc_servers', value: chipHeat, colorVar: W2 },
-    { source: 'dlc_servers', target: 'secondary_coolant', value: chipHeat, colorVar: W2 },
-    { source: 'secondary_coolant', target: 'cold_plates', value: chipHeat, colorVar: W2 },
-    { source: 'cold_plates', target: 'gpu_dlc', value: chipHeat * gpuShare, colorVar: W2 },
-    { source: 'cold_plates', target: 'tpu_dlc', value: chipHeat * tpuShare, colorVar: W2 },
-    { source: 'cold_plates', target: 'cpu_dlc', value: chipHeat * cpuShare, colorVar: W2 },
+    { source: 'heat_exchanger', target: 'cdu', value: chipHeat, colorVar: D1 },
+    { source: 'cdu', target: 'dlc_servers', value: chipHeat, colorVar: D1 },
+    { source: 'dlc_servers', target: 'secondary_coolant', value: chipHeat, colorVar: D1 },
+    { source: 'secondary_coolant', target: 'cold_plates', value: chipHeat, colorVar: D1 },
+    { source: 'cold_plates', target: 'gpu_dlc', value: chipHeat * gpuShare, colorVar: D2 },
+    { source: 'cold_plates', target: 'tpu_dlc', value: chipHeat * tpuShare, colorVar: D2 },
+    { source: 'cold_plates', target: 'cpu_dlc', value: chipHeat * cpuShare, colorVar: D2 },
   ]
 
   return { nodes, links, chipHeat }
