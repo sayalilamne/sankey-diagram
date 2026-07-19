@@ -16,5 +16,6 @@
   "climate_wue_mult": 0.90,
   "heat_rejection_wue_base": 0.80,
   "it_utilization": 0.92,
-  "evaporated_share": 0.80
+  "evaporated_share": 0.80,
+  "server_heat_loss_pct": 0.97
 }

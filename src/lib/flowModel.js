@@ -58,6 +58,33 @@ export const WATER_SHARED_ROW = {
   evaporated: 12, blowdown: 12,
 }
 
+// Direct Liquid Cooling secondary loop — the reference diagram's Heat
+// Exchanger -> CDU -> Servers/IT Equipment (DLC) -> Secondary Coolant ->
+// Cold Plates -> chip path. This is a THIRD independent track, not part of
+// the Water mass-balance track above: it's a closed loop carrying heat
+// (MW-thermal), not consumed water (gal/yr) — mixing the two into one
+// d3-sankey run would make a 97 MW-th flow render as a barely-visible
+// hairline next to a 150-million-gallon flow, since d3-sankey scales widths
+// off raw numbers with no unit awareness. Kept as its own track so its
+// widths stay honest, same principle as splitting Electrical from Water.
+export const DLC_NODE_COLUMN = {
+  heat_exchanger: 0,
+  cdu: 1,
+  dlc_servers: 2,
+  secondary_coolant: 3,
+  cold_plates: 4,
+  cpu_dlc: 5, gpu_dlc: 5, tpu_dlc: 5,
+}
+
+export const DLC_SHARED_ROW = {
+  heat_exchanger: 9,
+  cdu: 10,
+  dlc_servers: 11,
+  secondary_coolant: 12,
+  cold_plates: 13,
+  cpu_dlc: 14, gpu_dlc: 14, tpu_dlc: 14,
+}
+
 export const MAX_DEPTH = 14
 
 // Tier-band labels for the left-margin rail, matching the reference
@@ -231,4 +258,44 @@ export function computeWaterFlow({
   ]
 
   return { nodes, links, waterGallons, wue }
+}
+
+export function computeDLCFlow({ capacity_mw, server_heat_loss_pct, it_hardware_mix }) {
+  // Chip heat entering the liquid loop = IT Load x the fraction of chip
+  // power that becomes heat (97%, per the reference diagram's 95-99% label)
+  // — mirrors workbook/DataCenter_Flow_Model.xlsx's Heat Recovery sheet.
+  const chipHeat = capacity_mw * server_heat_loss_pct
+
+  // DLC specifically cools CPU/GPU/TPU (the dies the user asked to see) —
+  // renormalize just those three shares of the IT hardware mix to sum to
+  // 100% of the coolant loop, since ASIC/MPU/Fans aren't part of this path.
+  const dlcShareTotal = it_hardware_mix.gpu + it_hardware_mix.tpu + it_hardware_mix.cpu
+  const gpuShare = it_hardware_mix.gpu / dlcShareTotal
+  const tpuShare = it_hardware_mix.tpu / dlcShareTotal
+  const cpuShare = it_hardware_mix.cpu / dlcShareTotal
+
+  const nodes = [
+    { id: 'heat_exchanger', label: 'Heat Exchanger' },
+    { id: 'cdu', label: 'CDU' },
+    { id: 'dlc_servers', label: 'Servers/IT Equipment (DLC)' },
+    { id: 'secondary_coolant', label: 'Secondary Coolant' },
+    { id: 'cold_plates', label: 'Cold Plates' },
+    { id: 'cpu_dlc', label: 'CPU' },
+    { id: 'gpu_dlc', label: 'GPU' },
+    { id: 'tpu_dlc', label: 'TPU' },
+  ]
+
+  const W2 = '--flow-water-2'
+
+  const links = [
+    { source: 'heat_exchanger', target: 'cdu', value: chipHeat, colorVar: W2 },
+    { source: 'cdu', target: 'dlc_servers', value: chipHeat, colorVar: W2 },
+    { source: 'dlc_servers', target: 'secondary_coolant', value: chipHeat, colorVar: W2 },
+    { source: 'secondary_coolant', target: 'cold_plates', value: chipHeat, colorVar: W2 },
+    { source: 'cold_plates', target: 'gpu_dlc', value: chipHeat * gpuShare, colorVar: W2 },
+    { source: 'cold_plates', target: 'tpu_dlc', value: chipHeat * tpuShare, colorVar: W2 },
+    { source: 'cold_plates', target: 'cpu_dlc', value: chipHeat * cpuShare, colorVar: W2 },
+  ]
+
+  return { nodes, links, chipHeat }
 }
