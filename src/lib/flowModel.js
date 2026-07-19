@@ -27,6 +27,10 @@ export const ELECTRICAL_NODE_COLUMN = {
   gpu: 14, tpu: 14, cpu: 14, asic: 14, mpu: 14, fans: 14,
 }
 
+// Water's OWN dense column scheme (0-6, no gaps) — this is what gets fed to
+// d3-sankey's nodeAlign. d3-sankey's internal computeNodeBreadths indexes an
+// array by depth and crashes on skipped indices, so this must stay dense and
+// local to water's own graph; it must NOT be the shared 0-14 tier space.
 export const WATER_NODE_COLUMN = {
   water_source: 0,
   onsite_pump: 1,
@@ -36,6 +40,36 @@ export const WATER_NODE_COLUMN = {
   facility_water_loop: 5,
   evaporated: 6, blowdown: 6,
 }
+
+// Separate from the above: where each water node lands on the SHARED 0-14
+// row grid when rendered alongside Electrical, so the two tracks visually
+// align by facility tier. This is applied as a post-layout override of each
+// node's row position — d3-sankey itself never sees these sparse values, so
+// its internal math (which needs dense depths) stays untouched. Electrical
+// already spans every depth 0-14 with no gaps, so its own ELECTRICAL_NODE_COLUMN
+// doubles as its shared-row mapping without a separate table.
+export const WATER_SHARED_ROW = {
+  water_source: 0,
+  onsite_pump: 2,
+  hvac: 6,
+  closed_loop_evaporative: 8,
+  chiller: 9,
+  facility_water_loop: 10,
+  evaporated: 12, blowdown: 12,
+}
+
+export const MAX_DEPTH = 14
+
+// Tier-band labels for the left-margin rail, matching the reference
+// diagram's Utility Level / Campus Infrastructure / Facility Level / Data
+// Hall / Server groupings, expressed as inclusive [start, end] column ranges.
+export const TIER_BANDS = [
+  { label: 'Utility Level', start: 0, end: 2 },
+  { label: 'Campus Infrastructure', start: 3, end: 6 },
+  { label: 'Facility Level', start: 7, end: 11 },
+  { label: 'Data Hall', start: 12, end: 13 },
+  { label: 'Server', start: 14, end: 14 },
+]
 
 export function computeElectricityFlow({
   capacity_mw,
